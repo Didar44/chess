@@ -2,6 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { PersistedGame } from "@/features/auth/model/types";
 import { listPersistedGames } from "@/features/history/lib/games";
 
+const gamesCache = new Map<
+  string,
+  { games: PersistedGame[]; totalCount: number }
+>();
+
 export function usePersistedGames(userId: string | null, limit = 24) {
   const [games, setGames] = useState<PersistedGame[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -12,6 +17,8 @@ export function usePersistedGames(userId: string | null, limit = 24) {
     if (!userId) {
       setGames([]);
       setTotalCount(0);
+      setError(null);
+      gamesCache.delete(`guest:${limit}`);
       return;
     }
 
@@ -32,9 +39,34 @@ export function usePersistedGames(userId: string | null, limit = 24) {
   }, [limit, userId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refresh();
-  }, [refresh]);
+    if (!userId) {
+      return;
+    }
+
+    const cacheKey = `${userId}:${limit}`;
+    const cached = gamesCache.get(cacheKey);
+
+    if (cached) {
+      queueMicrotask(() => {
+        setGames(cached.games);
+        setTotalCount(cached.totalCount);
+        setLoading(false);
+      });
+      return;
+    }
+
+    queueMicrotask(() => {
+      void refresh();
+    });
+  }, [limit, refresh, userId]);
+
+  useEffect(() => {
+    if (!userId || loading || error) {
+      return;
+    }
+
+    gamesCache.set(`${userId}:${limit}`, { games, totalCount });
+  }, [error, games, limit, loading, totalCount, userId]);
 
   return {
     error,

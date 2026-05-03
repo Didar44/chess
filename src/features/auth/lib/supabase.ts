@@ -36,6 +36,45 @@ type DatabaseGameRow = {
 };
 
 let client: SupabaseClient | null = null;
+const profileCache = new Map<string, PlayerProfile | null>();
+
+function getProfileStorageKey(userId: string) {
+  return `boardline-profile:${userId}`;
+}
+
+function readStoredProfile(userId: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(getProfileStorageKey(userId));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as PlayerProfile;
+  } catch {
+    window.sessionStorage.removeItem(getProfileStorageKey(userId));
+    return null;
+  }
+}
+
+function storeProfile(userId: string, profile: PlayerProfile | null) {
+  profileCache.set(userId, profile);
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!profile) {
+    window.sessionStorage.removeItem(getProfileStorageKey(userId));
+    return;
+  }
+
+  window.sessionStorage.setItem(getProfileStorageKey(userId), JSON.stringify(profile));
+}
 
 export function isSupabaseConfigured() {
   const { supabasePublishableKey, supabaseUrl } = readEnv();
@@ -126,6 +165,13 @@ export function onSessionChange(
 }
 
 export async function loadProfile(user: User) {
+  const cachedProfile = profileCache.get(user.id) ?? readStoredProfile(user.id);
+
+  if (cachedProfile) {
+    profileCache.set(user.id, cachedProfile);
+    return cachedProfile;
+  }
+
   const supabase = getSupabaseBrowserClient();
 
   if (!supabase) {
@@ -143,10 +189,13 @@ export async function loadProfile(user: User) {
   }
 
   if (!data) {
+    storeProfile(user.id, null);
     return null;
   }
 
-  return toProfile(data, user);
+  const profile = toProfile(data, user);
+  storeProfile(user.id, profile);
+  return profile;
 }
 
 export async function upsertProfile(input: {
@@ -179,7 +228,9 @@ export async function upsertProfile(input: {
     throw error;
   }
 
-  return toProfile(data);
+  const profile = toProfile(data);
+  storeProfile(input.userId, profile);
+  return profile;
 }
 
 export async function ensureProfile(
@@ -202,6 +253,14 @@ export async function ensureProfile(
     email: user.email ?? "",
     userId: user.id,
   });
+}
+
+export function getCachedProfile(userId: string) {
+  return profileCache.get(userId) ?? readStoredProfile(userId);
+}
+
+export function clearCachedProfile(userId: string) {
+  storeProfile(userId, null);
 }
 
 export async function listLeaderboardProfiles(input?: {

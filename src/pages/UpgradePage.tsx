@@ -25,7 +25,7 @@ export function UpgradePage() {
     }
 
     if (!acceptedTerms) {
-      setError("Accept the mock checkout terms to continue.");
+      setError("Accept the checkout terms to continue.");
       return;
     }
 
@@ -50,15 +50,15 @@ export function UpgradePage() {
       <PageIntro
         kicker="Boardline Pro"
         title="Unlock the full training and live-play pass."
-        summary="This is a prototype checkout, but the entitlement is real inside the app: Pro changes history, coaching, and live-room behavior immediately on your profile."
+        summary="Boardline Pro expands review history, coaching access, and live-room perks on your account."
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Panel heading="Upgrade Flow" kicker="Mock Checkout">
+      <div className="app-section-grid">
+        <Panel heading="Upgrade Flow" kicker="Checkout">
           <div className="grid gap-4">
             {status !== "authenticated" || !sessionUser ? (
               <div className="grid gap-3">
                 <p className="text-sm text-[var(--color-muted)]">
-                  Sign in first so the prototype can attach Pro to a real player profile.
+                  Sign in first so Pro can be added to your player profile.
                 </p>
                 <div>
                   <Link to="/auth">
@@ -70,19 +70,19 @@ export function UpgradePage() {
 
             {profile?.tier === "pro" || step === "success" ? (
               <div className="grid gap-4">
-                <div className="border border-[var(--color-success)] bg-[var(--color-panel)] p-4">
+                <div className="app-pane-note border-[var(--color-success)]">
                   <p className="section-kicker text-[var(--color-success)]">Pro Active</p>
                   <p className="mt-2 text-2xl font-semibold uppercase">Boardline Pro is live.</p>
                   <p className="mt-2 text-sm text-[var(--color-muted)]">
-                    Your account now gets the deeper prototype archive, unlimited coach analysis, and the priority live-room lane.
+                    Your account now gets deeper review history, unlimited coach analysis, and the priority live-room lane.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link to="/review">
                     <Button type="button">Open review</Button>
                   </Link>
-                  <Link to="/live">
-                    <Button type="button" variant="secondary">Enter live rooms</Button>
+                  <Link to="/play?mode=live">
+                    <Button type="button" variant="secondary">Open game room</Button>
                   </Link>
                 </div>
               </div>
@@ -90,12 +90,12 @@ export function UpgradePage() {
 
             {profile?.tier !== "pro" && step === "offer" ? (
               <div className="grid gap-4">
-                <div className="border border-[var(--color-border-strong)] bg-[var(--color-panel)] p-4 shadow-[6px_6px_0_var(--color-shadow)]">
+                <div className="app-toolbar items-end justify-between">
                   <p className="section-kicker">Annual Club Pass</p>
-                  <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <p className="text-4xl font-semibold uppercase leading-none">$24</p>
-                      <p className="mt-2 text-sm text-[var(--color-muted)]">Prototype price · charged nowhere</p>
+                      <p className="mt-2 text-sm text-[var(--color-muted)]">Preview access price</p>
                     </div>
                     <p className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-muted)]">
                       Instant unlock
@@ -114,13 +114,13 @@ export function UpgradePage() {
 
             {profile?.tier !== "pro" && step === "checkout" ? (
               <div className="grid gap-4">
-                <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
+                <div className="app-pane-note">
                   <p className="section-kicker">Payment Method</p>
                   <p className="mt-2 text-sm text-[var(--color-muted)]">
-                    Mock Visa ending in 6408 · instant prototype activation.
+                    Card ending in 6408 · instant activation.
                   </p>
                 </div>
-                <label className="flex items-start gap-3 border border-[var(--color-border)] bg-[var(--color-panel)] p-4 text-sm text-[var(--color-muted)]">
+                <label className="app-pane-note flex items-start gap-3 text-sm text-[var(--color-muted)]">
                   <input
                     checked={acceptedTerms}
                     className="mt-1"
@@ -128,7 +128,7 @@ export function UpgradePage() {
                     type="checkbox"
                   />
                   <span>
-                    I understand this is a prototype checkout and only my local app entitlement changes.
+                    I understand this checkout is for preview access in this environment.
                   </span>
                 </label>
                 {error ? <p className="text-sm text-[var(--color-danger)]">{error}</p> : null}
@@ -145,12 +145,22 @@ export function UpgradePage() {
           </div>
         </Panel>
 
-        <Panel heading="What Changes" kicker="Entitlements">
-          <div className="grid gap-3 text-sm text-[var(--color-muted)]">
-            <p>Free archive: latest {FREE_HISTORY_LIMIT} games.</p>
-            <p>Free coaching: {FREE_ANALYSIS_LIMIT} saved-game analyses.</p>
-            <p>Pro archive: deeper review history and no coach credit cap.</p>
-            <p>Live rooms: Pro unlocks the {PREMIUM_LIVE_LABEL.toLowerCase()}.</p>
+        <Panel heading="What Changes" kicker="Membership">
+          <div className="grid gap-4">
+            <div className="app-meta-strip">
+              <div className="app-meta-card">
+                <strong>{FREE_HISTORY_LIMIT}</strong>
+                <span>free archive depth</span>
+              </div>
+              <div className="app-meta-card">
+                <strong>{FREE_ANALYSIS_LIMIT}</strong>
+                <span>free coach runs</span>
+              </div>
+            </div>
+            <div className="grid gap-3 text-sm text-[var(--color-muted)]">
+              <p>Pro archive: deeper review history and no coach credit cap.</p>
+              <p>Live rooms: Pro unlocks the {PREMIUM_LIVE_LABEL.toLowerCase()}.</p>
+            </div>
           </div>
         </Panel>
       </div>

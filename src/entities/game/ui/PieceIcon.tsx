@@ -1,57 +1,54 @@
-import type { PieceSymbol, Color } from "chess.js";
-
-const labels: Record<PieceSymbol, string> = {
-  k: "K",
-  q: "Q",
-  r: "R",
-  b: "B",
-  n: "N",
-  p: "P",
-};
+import type { Color, PieceSymbol } from "chess.js";
+import { cn } from "@/shared/lib/cn";
+import whiteKing from "@/assets/chess-pieces/wk.svg";
+import whiteQueen from "@/assets/chess-pieces/wq.svg";
+import whiteRook from "@/assets/chess-pieces/wr.svg";
+import whiteBishop from "@/assets/chess-pieces/wb.svg";
+import whiteKnight from "@/assets/chess-pieces/wn.svg";
+import whitePawn from "@/assets/chess-pieces/wp.svg";
+import blackKing from "@/assets/chess-pieces/bk.svg";
+import blackQueen from "@/assets/chess-pieces/bq.svg";
+import blackRook from "@/assets/chess-pieces/br.svg";
+import blackBishop from "@/assets/chess-pieces/bb.svg";
+import blackKnight from "@/assets/chess-pieces/bn.svg";
+import blackPawn from "@/assets/chess-pieces/bp.svg";
 
 type Props = {
   color: Color;
   piece: PieceSymbol;
 };
 
+const whitePieces: Record<PieceSymbol, string> = {
+  k: whiteKing,
+  q: whiteQueen,
+  r: whiteRook,
+  b: whiteBishop,
+  n: whiteKnight,
+  p: whitePawn,
+};
+
+const blackPieces: Record<PieceSymbol, string> = {
+  k: blackKing,
+  q: blackQueen,
+  r: blackRook,
+  b: blackBishop,
+  n: blackKnight,
+  p: blackPawn,
+};
+
 export function PieceIcon({ color, piece }: Props) {
-  const isWhite = color === "w";
+  const source = color === "w" ? whitePieces[piece] : blackPieces[piece];
 
   return (
-    <svg
+    <img
+      alt=""
       aria-hidden="true"
-      className="h-[80%] w-[80%] drop-shadow-[0_4px_3px_rgba(0,0,0,0.18)]"
-      viewBox="0 0 100 100"
-    >
-      <rect
-        x="14"
-        y="18"
-        width="72"
-        height="64"
-        rx="12"
-        fill={isWhite ? "#f8f1e3" : "#2d2118"}
-        stroke={isWhite ? "#3f2d1f" : "#f0e6d2"}
-        strokeWidth="5"
-      />
-      <circle
-        cx="50"
-        cy="34"
-        r="12"
-        fill={isWhite ? "#d7b16b" : "#df775d"}
-        stroke={isWhite ? "#3f2d1f" : "#f0e6d2"}
-        strokeWidth="4"
-      />
-      <text
-        fill={isWhite ? "#201710" : "#f8f1e3"}
-        fontFamily="JetBrains Mono, monospace"
-        fontSize="34"
-        fontWeight="700"
-        textAnchor="middle"
-        x="50"
-        y="66"
-      >
-        {labels[piece]}
-      </text>
-    </svg>
+      className={cn(
+        "h-[86%] w-[86%] select-none object-contain drop-shadow-[0_6px_4px_rgba(0,0,0,0.22)]",
+        color === "b" && "brightness-[0.92] contrast-[1.02]",
+      )}
+      draggable={false}
+      src={source}
+    />
   );
 }

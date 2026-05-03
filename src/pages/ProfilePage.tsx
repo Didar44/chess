@@ -18,8 +18,8 @@ export function ProfilePage() {
       <div className="grid gap-4">
         <PageIntro
           kicker="Profile"
-          title="Profile tools need Supabase configuration."
-          summary="Add the Supabase environment variables first, then the account pages can save profile and history data."
+          title="Profile tools are not available yet."
+          summary="Finish account setup for this environment, then profile changes and saved history will be available here."
         />
       </div>
     );
@@ -31,7 +31,7 @@ export function ProfilePage() {
         <PageIntro
           kicker="Profile"
           title="Sign in to edit your player identity."
-          summary="Profiles store your display name, required city, and later your saved standings and entitlements."
+          summary="Your profile stores your display name, required city, and account access across standings and saved review."
         />
         <Panel heading="Account Required" kicker="Guest State">
           <div className="flex flex-wrap gap-3">
@@ -54,7 +54,7 @@ export function ProfilePage() {
         title="Keep your chess identity clean and consistent."
         summary="Display name and city are editable here. City is required for leaderboard filters and local standings."
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="app-section-grid">
         <Panel heading="Player Details" kicker="Editable Profile">
           <form
             key={`${profile?.id ?? "guest"}:${profile?.updatedAt ?? ""}:${profile?.city ?? ""}`}
@@ -127,16 +127,25 @@ export function ProfilePage() {
         </Panel>
 
         <Panel heading="Account Status" kicker="Current Profile">
-          <div className="grid gap-3 text-sm text-[var(--color-muted)]">
-            <p>
-              Rating: <span className="font-semibold text-[var(--color-text)]">{profile?.rating ?? 1200}</span>
-            </p>
-            <p>
-              Tier: <span className="font-semibold uppercase text-[var(--color-text)]">{profile?.tier ?? "free"}</span>
-            </p>
-            <p>
-              City: <span className="font-semibold text-[var(--color-text)]">{profile?.city || "Missing"}</span>
-            </p>
+          <div className="grid gap-4">
+            <div className="app-meta-strip">
+              <div className="app-meta-card">
+                <strong>{profile?.rating ?? 1200}</strong>
+                <span>current rating</span>
+              </div>
+              <div className="app-meta-card">
+                <strong>{profile?.tier ?? "free"}</strong>
+                <span>membership tier</span>
+              </div>
+              <div className="app-meta-card">
+                <strong>{profile?.city || "Missing"}</strong>
+                <span>city card</span>
+              </div>
+            </div>
+            <div className="grid gap-3 text-sm text-[var(--color-muted)]">
+              <p>Your profile connects local standings, saved review, and account access.</p>
+              <p>Keep city accurate so leaderboard filters and regional comparisons stay useful.</p>
+            </div>
           </div>
           {profile?.tier !== "pro" ? (
             <div className="mt-4 border-t border-[var(--color-border)] pt-4">

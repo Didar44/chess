@@ -12,12 +12,12 @@ function Row({ color, pieces }: { color: Color; pieces: CapturedPiece[] }) {
       <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
         Captured from {color === "w" ? "White" : "Black"}
       </p>
-      <div className="flex min-h-16 flex-wrap gap-2 border border-[var(--color-border)] bg-[var(--color-panel)] p-2">
+      <div className="flex min-h-16 flex-wrap gap-2 border-2 border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-panel)_96%,white)] p-2 shadow-[4px_4px_0_var(--color-shadow)]">
         {pieces.length > 0 ? (
           pieces.map((piece) => (
             <div
               key={`${piece.color}-${piece.piece}-${piece.moveNumber}`}
-              className="flex h-12 w-12 items-center justify-center border border-[var(--color-border)] bg-[var(--color-surface)]"
+              className="flex h-12 w-12 items-center justify-center border border-[var(--color-border-strong)] bg-[var(--color-surface)]"
             >
               <PieceIcon color={piece.color} piece={piece.piece} />
             </div>

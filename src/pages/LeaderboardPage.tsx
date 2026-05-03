@@ -15,8 +15,8 @@ export function LeaderboardPage() {
       <div className="grid gap-4">
         <PageIntro
           kicker="Leaderboard"
-          title="Standings need Supabase configuration."
-          summary="Add the Supabase environment variables first, then ratings and city standings can load from real player profiles."
+          title="Standings are not available yet."
+          summary="Finish account and data setup for this environment, then ratings and city standings will appear here."
         />
       </div>
     );
@@ -29,13 +29,13 @@ export function LeaderboardPage() {
         title="Club standings, globally or by city."
         summary="Rated live games update these numbers. Filter the table by city to compare your local field against the wider board."
       />
-      <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="app-section-grid">
         <Panel heading="Filters" kicker="Standings View">
           <div className="grid gap-4">
             <label className="grid gap-2">
               <span className="section-kicker">City Filter</span>
               <select
-                className="min-h-12 border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 outline-none transition-colors focus:border-[var(--color-accent)]"
+                className="min-h-12 border-2 border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-surface)_94%,white)] px-3 outline-none shadow-[4px_4px_0_var(--color-shadow)] transition-all focus:border-[var(--color-accent)]"
                 onChange={(event) => setCityFilter(event.target.value)}
                 value={cityFilter}
               >
@@ -64,7 +64,7 @@ export function LeaderboardPage() {
                 ) : null}
               </div>
             ) : null}
-            <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3 text-sm text-[var(--color-muted)]">
+            <div className="app-pane-note text-sm">
               <p>
                 {cityFilter
                   ? `Showing players from ${cityFilter}.`
@@ -94,53 +94,98 @@ export function LeaderboardPage() {
             <p className="text-sm text-[var(--color-muted)]">
               No rated players found for this filter yet.
             </p>
+            ) : null}
+          {!leaderboard.loading && leaderboard.players.length > 0 ? (
+            <>
+              <div className="grid gap-3 sm:hidden">
+                {leaderboard.players.map((row, index) => {
+                  const isCurrentPlayer = profile?.id === row.id;
+
+                  return (
+                    <div
+                      key={row.id}
+                      className={
+                        isCurrentPlayer
+                          ? "app-pane-note grid gap-3 bg-[var(--color-accent-soft)]"
+                          : "app-pane-note grid gap-3"
+                      }
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="section-kicker">Rank {index + 1}</p>
+                          <p className="mt-2 text-xl font-semibold uppercase leading-none">
+                            {row.displayName}
+                          </p>
+                          {isCurrentPlayer ? (
+                            <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-muted)]">
+                              You
+                            </p>
+                          ) : null}
+                        </div>
+                        <p className="font-mono text-sm text-[var(--color-muted)]">{row.rating}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="section-kicker">City</p>
+                          <p className="mt-1 text-[var(--color-text)]">{row.city || "Unknown"}</p>
+                        </div>
+                        <div>
+                          <p className="section-kicker">Tier</p>
+                          <p className="mt-1 text-[var(--color-text)] uppercase">{row.tier}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-auto border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_95%,white)] sm:block">
+                <table className="w-full border-collapse text-left">
+                  <thead className="bg-[var(--color-panel-strong)]">
+                    <tr className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
+                      <th className="border-b border-[var(--color-border)] px-3 py-2">Rank</th>
+                      <th className="border-b border-[var(--color-border)] px-3 py-2">Player</th>
+                      <th className="border-b border-[var(--color-border)] px-3 py-2">City</th>
+                      <th className="border-b border-[var(--color-border)] px-3 py-2">Rating</th>
+                      <th className="border-b border-[var(--color-border)] px-3 py-2">Tier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.players.map((row, index) => (
+                      <tr
+                        key={row.id}
+                        className={
+                          profile?.id === row.id
+                            ? "bg-[var(--color-accent-soft)]"
+                            : "odd:bg-[var(--color-accent-soft)]/40"
+                        }
+                      >
+                        <td className="border-b border-[var(--color-border)] px-3 py-3 font-mono">
+                          {index + 1}
+                        </td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-3 font-semibold uppercase">
+                          {row.displayName}
+                          {profile?.id === row.id ? (
+                            <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-muted)]">
+                              You
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-3">
+                          {row.city || "Unknown"}
+                        </td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-3 font-mono">
+                          {row.rating}
+                        </td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-3 uppercase">
+                          {row.tier}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : null}
-          <div className="overflow-auto border border-[var(--color-border)]">
-            <table className="w-full border-collapse text-left">
-              <thead className="bg-[var(--color-panel-strong)]">
-                <tr className="font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
-                  <th className="border-b border-[var(--color-border)] px-3 py-2">Rank</th>
-                  <th className="border-b border-[var(--color-border)] px-3 py-2">Player</th>
-                  <th className="border-b border-[var(--color-border)] px-3 py-2">City</th>
-                  <th className="border-b border-[var(--color-border)] px-3 py-2">Rating</th>
-                  <th className="border-b border-[var(--color-border)] px-3 py-2">Tier</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.players.map((row, index) => (
-                  <tr
-                    key={row.id}
-                    className={
-                      profile?.id === row.id
-                        ? "bg-[var(--color-accent-soft)]"
-                        : "odd:bg-[var(--color-accent-soft)]/40"
-                    }
-                  >
-                    <td className="border-b border-[var(--color-border)] px-3 py-3 font-mono">
-                      {index + 1}
-                    </td>
-                    <td className="border-b border-[var(--color-border)] px-3 py-3 font-semibold uppercase">
-                      {row.displayName}
-                      {profile?.id === row.id ? (
-                        <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-muted)]">
-                          You
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="border-b border-[var(--color-border)] px-3 py-3">
-                      {row.city || "Unknown"}
-                    </td>
-                    <td className="border-b border-[var(--color-border)] px-3 py-3 font-mono">
-                      {row.rating}
-                    </td>
-                    <td className="border-b border-[var(--color-border)] px-3 py-3 uppercase">
-                      {row.tier}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </Panel>
       </div>
     </div>

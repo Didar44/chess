@@ -5,6 +5,11 @@ import {
   listProfileCities,
 } from "@/features/auth/lib/supabase";
 
+const leaderboardCache = new Map<
+  string,
+  { cities: string[]; players: PlayerProfile[] }
+>();
+
 export function useLeaderboard(city: string, enabled = true) {
   const [cities, setCities] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +47,35 @@ export function useLeaderboard(city: string, enabled = true) {
   }, [city, enabled]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refresh();
-  }, [refresh]);
+    if (!enabled) {
+      return;
+    }
+
+    const cacheKey = city || "__all__";
+    const cached = leaderboardCache.get(cacheKey);
+
+    if (cached) {
+      queueMicrotask(() => {
+        setCities(cached.cities);
+        setPlayers(cached.players);
+        setLoading(false);
+        setError(null);
+      });
+      return;
+    }
+
+    queueMicrotask(() => {
+      void refresh();
+    });
+  }, [city, enabled, refresh]);
+
+  useEffect(() => {
+    if (!enabled || loading || error) {
+      return;
+    }
+
+    leaderboardCache.set(city || "__all__", { cities, players });
+  }, [cities, city, enabled, error, loading, players]);
 
   return useMemo(
     () => ({

@@ -23,8 +23,49 @@ type DatabaseLiveGameRow = {
   white_player_key: string | null;
 };
 
+function generateId() {
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.crypto &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.crypto &&
+    typeof globalThis.crypto.getRandomValues === "function"
+  ) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+}
+
 export function createLiveGameId() {
-  return crypto.randomUUID().split("-")[0];
+  return generateId().split("-")[0];
+}
+
+export function getUnifiedGamePath(input?: {
+  lane?: "pro" | null;
+  mode?: "live";
+  roomId?: string | null;
+}) {
+  const params = new URLSearchParams();
+  params.set("mode", input?.mode ?? "live");
+
+  if (input?.roomId) {
+    params.set("room", input.roomId);
+  }
+
+  if (input?.lane === "pro") {
+    params.set("lane", "pro");
+  }
+
+  return `/play?${params.toString()}`;
 }
 
 export function getLiveChannelName(gameId: string) {
@@ -32,7 +73,7 @@ export function getLiveChannelName(gameId: string) {
 }
 
 export function getLiveShareUrl(gameId: string) {
-  return `${window.location.origin}/live/${gameId}`;
+  return `${window.location.origin}${getUnifiedGamePath({ roomId: gameId })}`;
 }
 
 export function getOrCreateGuestIdentity() {
@@ -43,7 +84,7 @@ export function getOrCreateGuestIdentity() {
     return { key: existingKey, name: existingName };
   }
 
-  const key = crypto.randomUUID();
+  const key = generateId();
   const name = `Guest ${key.slice(0, 4).toUpperCase()}`;
   window.localStorage.setItem(GUEST_KEY_STORAGE, key);
   window.localStorage.setItem(GUEST_NAME_STORAGE, name);

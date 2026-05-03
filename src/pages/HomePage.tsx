@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/Button";
+import logo from "@/assets/logo.svg";
 import heroImage from "@/assets/landing/hero.png";
 import boardRoomImage from "@/assets/landing/Board_Room_Section.png";
 import analysisImage from "@/assets/landing/Analysis.png";
+
 
 const specCards = [
   {
@@ -71,8 +73,8 @@ export function HomePage() {
     <div className="landing-shell min-h-screen bg-[var(--color-canvas)] text-[var(--color-text)]">
       <div className="mx-auto flex min-h-screen w-full max-w-[1480px] flex-col px-4 pb-12 pt-4 sm:px-6 lg:px-8">
         <header className="landing-topbar page-enter">
-          <div className="flex items-center gap-3">
-            <span className="landing-mark" aria-hidden="true" />
+          <div className="flex items-center">
+            <img alt="Boardline logo" className="auth-brand__mark" src={logo} />
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.26em] text-[var(--color-muted)]">
                 Boardline Chess
@@ -308,15 +310,10 @@ export function HomePage() {
               and after the game.
             </p>
           </div>
-          <div className="grid gap-2 text-sm text-[var(--color-muted)]">
+          <div className="grid gap-2 text-sm">
             <Link to="/play">Local board</Link>
             <Link to="/review">Review</Link>
             <Link to="/upgrade">Upgrade</Link>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="landing-footer-swatch bg-[var(--color-accent)]" />
-            <span className="landing-footer-swatch bg-[var(--color-secondary)]" />
-            <span className="landing-footer-swatch bg-[var(--board-dark)]" />
           </div>
         </footer>
       </div>

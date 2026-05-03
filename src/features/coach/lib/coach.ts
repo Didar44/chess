@@ -174,14 +174,13 @@ Requirements:
 - return 3 to 5 key moments
 - each key moment must reference the ply number and SAN move if inferable from the PGN
 - keep advice actionable for a club player
-- keep the summary to 2 short sentences max
+- keep the summary short
 `;
 
   const response = await ai.models.generateContent({
     model: DEFAULT_GEMINI_MODEL,
     contents: prompt,
     config: {
-      maxOutputTokens: 1000,
       responseJsonSchema: coachingSchema,
       responseMimeType: "application/json",
     },

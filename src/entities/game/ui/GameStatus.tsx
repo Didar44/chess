@@ -5,7 +5,6 @@ type Props = {
   turn: Color;
   isGameOver: boolean;
   result: string | null;
-  pgn: string;
 };
 
 function formatTurn(turn: Color) {
@@ -31,29 +30,37 @@ function describeResult(result: string | null) {
   }
 }
 
-export function GameStatus({ checkSquare, isGameOver, pgn, result, turn }: Props) {
+export function GameStatus({ checkSquare, isGameOver, result, turn }: Props) {
   return (
     <div aria-live="polite" className="grid gap-3">
-      <div className="grid gap-2 border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
+      <div className="app-meta-strip">
+        <div className="app-meta-card">
+          <strong>{isGameOver ? "Closed" : formatTurn(turn)}</strong>
+          <span>side to move</span>
+        </div>
+        <div className="app-meta-card">
+          <strong>{describeResult(result)}</strong>
+          <span>resolution</span>
+        </div>
+        <div className="app-meta-card">
+          <strong>{checkSquare ?? "Safe"}</strong>
+          <span>{checkSquare ? "king square under pressure" : "board status"}</span>
+        </div>
+      </div>
+
+      <div className="app-pane-note">
         <p className="section-kicker">Match State</p>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-sm text-[var(--color-muted)]">Side to move</p>
-            <p className="text-3xl font-semibold uppercase leading-none">
-              {isGameOver ? "Closed" : formatTurn(turn)}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--color-muted)]">Resolution</p>
-            <p className="text-2xl font-semibold uppercase leading-none">
-              {describeResult(result)}
-            </p>
-          </div>
+        <div className="mt-2 grid gap-2 text-sm text-[var(--color-muted)]">
+          <p>
+            {isGameOver
+              ? "This table is closed. Save the PGN or reset the room for the next round."
+              : `${formatTurn(turn)} is up. Use the board as the primary surface and the ledger as confirmation.`}
+          </p>
         </div>
       </div>
 
       {!isGameOver && checkSquare ? (
-        <div className="grid gap-2 border border-[var(--color-danger)] bg-[var(--color-accent-soft)] p-3">
+        <div className="app-pane-note border-[var(--color-danger)] bg-[var(--color-accent-soft)]">
           <p className="section-kicker">Check Alert</p>
           <p className="text-lg font-semibold uppercase leading-none">
             {formatTurn(turn)} king is under pressure
@@ -64,12 +71,6 @@ export function GameStatus({ checkSquare, isGameOver, pgn, result, turn }: Props
         </div>
       ) : null}
 
-      <div className="grid gap-2 border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
-        <p className="section-kicker">PGN Snapshot</p>
-        <pre className="overflow-auto whitespace-pre-wrap font-mono text-xs text-[var(--color-muted)]">
-          {pgn || "Moves will stream here as soon as the game begins."}
-        </pre>
-      </div>
     </div>
   );
 }

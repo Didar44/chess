@@ -26,6 +26,7 @@ export function ChessBoard({ disabled = false, gameState }: Props) {
 
   const boardSquares = useMemo(() => buildBoardSquares(flipped), [flipped]);
   const [focusedSquare, setFocusedSquare] = useState<Square>(boardSquares[0]);
+  const [draggedSquare, setDraggedSquare] = useState<Square | null>(null);
   const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const lastMoveSquares = new Set<Square>(lastMove ? [lastMove.from, lastMove.to] : []);
   const activeFocusSquare = boardSquares.includes(focusedSquare)
@@ -86,7 +87,7 @@ export function ChessBoard({ disabled = false, gameState }: Props) {
       </div>
       <div className="board-frame overflow-hidden border-2 border-[var(--color-border-strong)] bg-[var(--color-panel-strong)] p-2 shadow-[8px_8px_0_var(--color-shadow)]">
         <p className="sr-only" id="boardline-board-help">
-          Use arrow keys to move across the board. Press Enter or Space to select or move a piece.
+          Use arrow keys to move across the board. Press Enter or Space to select or move a piece. You can also drag a piece to a destination square.
         </p>
         <div
           aria-describedby="boardline-board-help"
@@ -100,6 +101,12 @@ export function ChessBoard({ disabled = false, gameState }: Props) {
             const isTarget = legalTargets.includes(square);
             const isLastMove = lastMoveSquares.has(square);
             const isCheck = checkSquare === square;
+            const isDragged = draggedSquare === square;
+            const isDropTarget = draggedSquare !== null && legalTargets.includes(square);
+            const isDraggablePiece =
+              !disabled
+              && !pendingPromotion
+              && piece?.color === game.turn();
 
             return (
               <button
@@ -114,11 +121,29 @@ export function ChessBoard({ disabled = false, gameState }: Props) {
                     : "bg-[var(--board-light)] text-[var(--color-text)]",
                   isSelected && "shadow-[inset_0_0_0_999px_var(--square-highlight)]",
                   isTarget && "shadow-[inset_0_0_0_999px_var(--square-target)]",
+                  isDropTarget && "scale-[0.985] shadow-[inset_0_0_0_999px_var(--square-target)]",
                   isCheck && "check-beacon shadow-[inset_0_0_0_999px_var(--square-check)]",
                   isLastMove && "outline outline-2 outline-offset-[-3px] outline-[var(--color-accent)]",
                   pendingPromotion && pendingPromotion.to === square && "capture-flash",
                 )}
                 disabled={disabled}
+                onDragOver={(event) => {
+                  if (!draggedSquare || draggedSquare === square) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(event) => {
+                  if (!draggedSquare || draggedSquare === square) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  actions.movePiece(draggedSquare, square);
+                  setDraggedSquare(null);
+                }}
                 onFocus={() => setFocusedSquare(square)}
                 onKeyDown={(event) => {
                   switch (event.key) {
@@ -159,7 +184,28 @@ export function ChessBoard({ disabled = false, gameState }: Props) {
                 </span>
                 <span className="flex h-full items-center justify-center">
                   {piece ? (
-                    <span className={cn("flex h-full w-full items-center justify-center", gameState.lastMoveKey && "piece-pulse")}>
+                    <span
+                      className={cn(
+                        "flex h-full w-full items-center justify-center",
+                        gameState.lastMoveKey && "piece-pulse",
+                        isDragged && "cursor-grabbing opacity-55",
+                        isDraggablePiece && "cursor-grab",
+                      )}
+                      draggable={isDraggablePiece}
+                      onDragStart={(event) => {
+                        setDraggedSquare(square);
+                        actions.setSelectedSquare(square);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", square);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedSquare(null);
+
+                        if (selectedSquare === square) {
+                          actions.setSelectedSquare(null);
+                        }
+                      }}
+                    >
                       <PieceIcon color={piece.color} piece={piece.type} />
                     </span>
                   ) : isTarget ? (

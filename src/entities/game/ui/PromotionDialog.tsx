@@ -30,7 +30,7 @@ export function PromotionDialog({ pendingPromotion, onCancel, onConfirm }: Props
           {promotionOptions.map((piece) => (
             <button
               key={piece}
-              className="flex aspect-square items-center justify-center border border-[var(--color-border-strong)] bg-[var(--color-panel)] transition-colors hover:bg-[var(--color-accent-soft)]"
+              className="flex aspect-square items-center justify-center border-2 border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-panel)_96%,white)] shadow-[4px_4px_0_var(--color-shadow)] transition-colors hover:bg-[var(--color-accent-soft)] hover:shadow-[2px_2px_0_var(--color-shadow)]"
               onClick={() => onConfirm(piece)}
               type="button"
             >

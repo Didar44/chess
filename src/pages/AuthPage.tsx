@@ -1,24 +1,31 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import logo from "@/assets/logo.svg";
 import { useAuth } from "@/features/auth/model/auth-context";
 import { Button } from "@/shared/ui/Button";
-import { Panel } from "@/shared/ui/Panel";
 import { TextField } from "@/shared/ui/TextField";
 
-type FormMode = "sign-in" | "sign-up";
-
 export function AuthPage() {
-  const { error, isConfigured, signIn, signUp, status } = useAuth();
-  const [mode, setMode] = useState<FormMode>("sign-in");
+  const navigate = useNavigate();
+  const { error, isConfigured, sessionUser, signIn, signUp, status } = useAuth();
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signupMessage, setSignupMessage] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [city, setCity] = useState("");
 
-  const handleSubmit = async () => {
+  useEffect(() => {
+    if (status === "authenticated" && sessionUser) {
+      navigate("/play", { replace: true });
+    }
+  }, [navigate, sessionUser, status]);
+
+  const handleSubmit = async (mode: "sign-in" | "sign-up") => {
     setFormError(null);
+    setSignupMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -35,6 +42,9 @@ export function AuthPage() {
           email,
           password,
         });
+        setSignupMessage(
+          "Account created! You can now sign in.",
+        );
       }
     } catch (nextError) {
       setFormError(
@@ -46,140 +56,123 @@ export function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-canvas)] px-4 py-4 text-[var(--color-text)] sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-[1200px] gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)]">
-        <section className="section-card panel-rise p-5 sm:p-6">
-          <p className="section-kicker">Account Access</p>
-          <h1 className="mt-3 text-5xl font-semibold uppercase leading-[0.9] sm:text-6xl">
-            Sign in for saved games, live rooms, and rankings.
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg text-[var(--color-muted)]">
-            Use the public auth route to create an account or sign back in before
-            entering the full app shell.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/play">
-              <Button>Continue as guest</Button>
-            </Link>
-            <Link to="/">
-              <Button variant="secondary">Back to landing</Button>
-            </Link>
+    <div className="auth-stage min-h-screen px-4 py-5 text-[var(--color-text)] sm:px-6 lg:px-8">
+      <div className="auth-layout mx-auto justify-center">
+        <header className="auth-brand panel-rise">
+          <Link className="auth-brand__link" to="/">
+            <img alt="Boardline logo" className="auth-brand__mark" src={logo} />
+            <span className="auth-brand__copy">
+              <strong>Boardline</strong>
+              <span>Chess club access</span>
+            </span>
+          </Link>
+        </header>
+
+        <section className="auth-card auth-card--single panel-rise min-w-[475px] max-[520px]:min-w-0">
+          <div className="auth-card__header">
+            <h1>{mode === "sign-in" ? "Return to your board." : "Join the club room."}</h1>
+            <p>
+              {mode === "sign-in"
+                ? "Sign in with your email and password, or switch to create a player account."
+                : "Create your player account with email, password, display name, and city."}
+            </p>
           </div>
-          {!isConfigured ? (
-            <div className="mt-6 border border-[var(--color-warning)] bg-[var(--color-panel)] p-4 text-sm text-[var(--color-muted)]">
-              Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to activate email auth.
-            </div>
-          ) : null}
-          {status === "authenticated" ? (
-            <div className="mt-6 border border-[var(--color-success)] bg-[var(--color-panel)] p-4 text-sm text-[var(--color-muted)]">
-              Signed in. Open your profile or review saved games from the app shell.
-            </div>
-          ) : null}
-        </section>
 
-        <Panel
-          className="panel-rise"
-          heading={mode === "sign-in" ? "Email Sign In" : "Create Account"}
-          kicker="Supabase Auth"
-        >
-          <div className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                compact
-                onClick={() => setMode("sign-in")}
-                type="button"
-                variant={mode === "sign-in" ? "primary" : "ghost"}
+          <div className="auth-card__body">
+            <div className="auth-form-wrap">
+              <form
+                className="auth-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleSubmit(mode);
+                }}
               >
-                Sign in
-              </Button>
-              <Button
-                compact
-                onClick={() => setMode("sign-up")}
-                type="button"
-                variant={mode === "sign-up" ? "primary" : "ghost"}
-              >
-                Create account
-              </Button>
-            </div>
-
-            <form
-              className="grid gap-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleSubmit();
-              }}
-            >
-              {mode === "sign-up" ? (
                 <label className="grid gap-2">
-                  <span className="section-kicker">Display Name</span>
+                  <span className="section-kicker">Email</span>
                   <TextField
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="How your name appears"
-                    value={displayName}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    type="email"
+                    value={email}
                   />
                 </label>
-              ) : null}
 
-              <label className="grid gap-2">
-                <span className="section-kicker">Email</span>
-                <TextField
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@example.com"
-                  type="email"
-                  value={email}
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="section-kicker">Password</span>
-                <TextField
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter password"
-                  type="password"
-                  value={password}
-                />
-              </label>
-
-              {mode === "sign-up" ? (
                 <label className="grid gap-2">
-                  <span className="section-kicker">City</span>
+                  <span className="section-kicker">Password</span>
                   <TextField
-                    onChange={(event) => setCity(event.target.value)}
-                    placeholder="Required for city standings"
-                    value={city}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter or create password"
+                    type="password"
+                    value={password}
                   />
                 </label>
-              ) : null}
 
-              <p className="text-sm text-[var(--color-muted)]">
-                {mode === "sign-in"
-                  ? "Sign in with your email and password."
-                  : "City is required when creating an account so leaderboard filters work later."}
-              </p>
+                {mode === "sign-up" ? (
+                  <>
+                    <label className="grid gap-2">
+                      <span className="section-kicker">Display Name</span>
+                      <TextField
+                        onChange={(event) => setDisplayName(event.target.value)}
+                        placeholder="Used when you create an account"
+                        value={displayName}
+                      />
+                    </label>
 
-              {formError || error ? (
-                <p className="text-sm text-[var(--color-danger)]">
-                  {formError ?? error}
-                </p>
-              ) : null}
+                    <label className="grid gap-2">
+                      <span className="section-kicker">City</span>
+                      <TextField
+                        onChange={(event) => setCity(event.target.value)}
+                        placeholder="Required for account creation"
+                        value={city}
+                      />
+                    </label>
+                  </>
+                ) : null}
 
-              <div className="flex flex-wrap gap-3">
-                <Button disabled={!isConfigured || isSubmitting} type="submit">
-                  {isSubmitting
-                    ? "Submitting"
-                    : mode === "sign-in"
-                      ? "Continue with email"
-                      : "Create account"}
+                {formError || error ? (
+                  <p className="text-sm text-[var(--color-danger)]">
+                    {formError ?? error}
+                  </p>
+                ) : null}
+                {signupMessage ? (
+                  <p className="text-sm text-[var(--color-success)]">{signupMessage}</p>
+                ) : null}
+              </form>
+
+              <div className="auth-actions">
+                <Button
+                  className="w-full"
+                  disabled={!isConfigured || isSubmitting}
+                  onClick={() => void handleSubmit(mode)}
+                  type="button"
+                >
+                  {isSubmitting ? "Submitting" : mode === "sign-in" ? "Sign in" : "Create account"}
                 </Button>
-                <Link to="/play">
-                  <Button type="button" variant="ghost">
-                    Skip for now
-                  </Button>
-                </Link>
+                <div className="auth-guest-group">
+                  <Link to="/play">
+                    <Button className="w-full" type="button" variant="ghost">
+                      Continue as guest
+                    </Button>
+                  </Link>
+                </div>
               </div>
-            </form>
+            </div>
           </div>
-        </Panel>
+        </section>
+          <div className="text-center text-[16px] tracking-[0.24em] text-[var(--color-muted)]">
+            {mode === "sign-in" ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button
+              className="font-semibold text-[var(--color-text)] underline-offset-4 underline hover:no-underline"
+              onClick={() => {
+                setFormError(null);
+                setSignupMessage(null);
+                setMode(mode === "sign-in" ? "sign-up" : "sign-in");
+              }}
+              type="button"
+            >
+              {mode === "sign-in" ? "Sign up" : "Sign in"}
+            </button>
+          </div>
       </div>
     </div>
   );

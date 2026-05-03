@@ -24,7 +24,7 @@ export function MoveList({ moves }: Props) {
   return (
     <div className="grid gap-3">
       <p className="section-kicker">Move Ledger</p>
-      <div className="max-h-[420px] overflow-auto border border-[var(--color-border)]">
+      <div className="scroll-rail-md border-2 border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-surface)_96%,white)] shadow-[4px_4px_0_var(--color-shadow)]">
         <table className="w-full border-collapse text-left">
           <thead className="bg-[var(--color-panel-strong)] font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
             <tr>

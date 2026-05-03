@@ -2,7 +2,9 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import type { PropsWithChildren } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import {
+  clearCachedProfile,
   ensureProfile,
+  getCachedProfile,
   getInitialSession,
   getSupabaseBrowserClient,
   isSupabaseConfigured,
@@ -40,8 +42,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        const cachedProfile = session?.user ? getCachedProfile(session.user.id) : null;
+
         startTransition(() => {
           setSessionUser(session?.user ?? null);
+          setProfile(cachedProfile);
           setStatus(session?.user ? "loading" : "guest");
         });
       })
@@ -59,9 +64,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
 
+      const cachedProfile = session?.user ? getCachedProfile(session.user.id) : null;
+
       startTransition(() => {
         setSessionUser(session?.user ?? null);
-        setProfile(null);
+        setProfile(cachedProfile);
         setStatus(session?.user ? "loading" : "guest");
       });
     });
@@ -116,6 +123,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        clearCachedProfile(sessionUser.id);
         const nextProfile = await loadProfile(sessionUser);
         if (nextProfile) {
           setProfile(nextProfile);
@@ -139,8 +147,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
           throw signInError;
         }
 
+        const cachedProfile = data.user ? getCachedProfile(data.user.id) : null;
+
         startTransition(() => {
           setSessionUser(data.user);
+          setProfile(cachedProfile);
           setStatus(data.user ? "loading" : "guest");
         });
       },
@@ -155,6 +166,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         if (signOutError) {
           throw signOutError;
+        }
+
+        if (sessionUser) {
+          clearCachedProfile(sessionUser.id);
         }
 
         startTransition(() => {
@@ -188,7 +203,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         if (data.user) {
-          await ensureProfile(data.user, { city, displayName });
+          const ensuredProfile = await ensureProfile(data.user, { city, displayName });
+
+          startTransition(() => {
+            setProfile(ensuredProfile);
+          });
         }
 
         startTransition(() => {

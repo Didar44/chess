@@ -12,6 +12,18 @@ function createGame() {
   return new Chess();
 }
 
+function cloneGame(source: Chess) {
+  const pgn = source.pgn();
+
+  if (pgn.trim()) {
+    const nextGame = new Chess();
+    nextGame.loadPgn(pgn);
+    return nextGame;
+  }
+
+  return new Chess(source.fen());
+}
+
 export function useLocalChessGame() {
   const [game, setGame] = useState(() => createGame());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
@@ -64,7 +76,7 @@ export function useLocalChessGame() {
   const flipBoard = () => setFlipped((current) => !current);
 
   const tryMove = (from: Square, to: Square, promotion?: PieceSymbol) => {
-    const nextGame = new Chess(game.fen());
+    const nextGame = cloneGame(game);
 
     try {
       const move = nextGame.move({ from, to, promotion });
@@ -132,6 +144,38 @@ export function useLocalChessGame() {
     tryMove(pendingPromotion.from, pendingPromotion.to, piece);
   };
 
+  const movePiece = (from: Square, to: Square) => {
+    if (pendingPromotion) {
+      return false;
+    }
+
+    const piece = game.get(from);
+
+    if (!piece || piece.color !== game.turn()) {
+      return false;
+    }
+
+    const candidateMove = game
+      .moves({ square: from, verbose: true })
+      .find((move) => move.to === to);
+
+    if (!candidateMove) {
+      return false;
+    }
+
+    if (candidateMove.flags.includes("p")) {
+      setSelectedSquare(from);
+      setPendingPromotion({
+        from,
+        to,
+        color: game.turn(),
+      });
+      return true;
+    }
+
+    return tryMove(from, to);
+  };
+
   const cancelPromotion = () => {
     setPendingPromotion(null);
     setSelectedSquare(null);
@@ -146,7 +190,7 @@ export function useLocalChessGame() {
       return;
     }
 
-    const nextGame = new Chess(game.fen());
+    const nextGame = cloneGame(game);
 
     for (let index = 0; index < count; index += 1) {
       if (!nextGame.undo()) {
@@ -169,6 +213,14 @@ export function useLocalChessGame() {
   };
 
   const loadPgn = (pgn: string) => {
+    if (!pgn.trim()) {
+      setGame(createGame());
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setLastMoveKey("load-0");
+      return;
+    }
+
     const nextGame = new Chess();
     nextGame.loadPgn(pgn);
     setGame(nextGame);
@@ -185,6 +237,7 @@ export function useLocalChessGame() {
       flipBoard,
       resetGame,
       resolveSquare,
+      movePiece,
       applyUciMove,
       loadPgn,
       setSelectedSquare,

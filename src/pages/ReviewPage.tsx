@@ -19,6 +19,7 @@ export function ReviewPage() {
     historyLimit,
   );
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const selectedGame = useMemo(
     () => games.find((game) => game.id === selectedGameId) ?? games[0] ?? null,
     [games, selectedGameId],
@@ -32,8 +33,8 @@ export function ReviewPage() {
       <div className="grid gap-4">
         <PageIntro
           kicker="Review"
-          title="Saved review needs Supabase configuration."
-          summary="Set the Supabase environment variables first, then the app can store completed matches and reload them here."
+          title="Saved review is not available yet."
+          summary="Finish account and storage setup for this environment, then completed matches will appear here automatically."
         />
       </div>
     );
@@ -45,7 +46,7 @@ export function ReviewPage() {
         <PageIntro
           kicker="Review"
           title="Sign in to review saved match history."
-          summary="Guests can play immediately, but history and move-by-move review are tied to a real account."
+          summary="Guests can play immediately, but saved history and move-by-move review are tied to your account."
         />
         <Panel heading="Account Required" kicker="Saved History">
           <div className="flex flex-wrap gap-3">
@@ -68,11 +69,11 @@ export function ReviewPage() {
         title="Saved games, replayed move by move."
         summary="Choose a stored match, step through the move list, and inspect the board state at any point."
       />
-      <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="app-section-grid">
         <Panel heading="Saved Games" kicker="History">
           <div className="grid gap-3">
             {profile?.tier !== "pro" ? (
-              <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3 text-sm text-[var(--color-muted)]">
+              <div className="app-pane-note text-sm">
                 <p>
                   Free accounts can open the latest {historyLimit} saved games and use{" "}
                   {FREE_ANALYSIS_LIMIT} coach runs.
@@ -99,7 +100,7 @@ export function ReviewPage() {
               </p>
             ) : null}
             {hiddenGameCount > 0 && profile?.tier !== "pro" ? (
-              <div className="border border-[var(--color-warning)] bg-[var(--color-panel)] p-3 text-sm text-[var(--color-muted)]">
+              <div className="app-pane-note border-[var(--color-warning)] text-sm">
                 <p>
                   {hiddenGameCount} older game{hiddenGameCount === 1 ? "" : "s"} are outside the free archive.
                 </p>
@@ -112,38 +113,41 @@ export function ReviewPage() {
                 </div>
               </div>
             ) : null}
-            {games.map((game) => (
-              <button
-                key={game.id}
-                className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3 text-left transition-colors hover:bg-[var(--color-accent-soft)]"
-                onClick={() => {
-                  setSelectedGameId(game.id);
-                  review.reset();
-                }}
-                type="button"
-              >
-                <p className="text-lg font-semibold uppercase">{game.summary}</p>
-                <p className="mt-1 text-sm text-[var(--color-muted)]">
-                  {new Date(game.createdAt).toLocaleString()}
-                </p>
-                <p className="mt-2 text-sm text-[var(--color-muted)]">
-                  {game.mode.toUpperCase()} · {game.moveCount} plies · {game.result}
-                </p>
-              </button>
-            ))}
+            <div className="scroll-rail-lg grid gap-3 pr-1">
+              {games.map((game) => (
+                <button
+                  key={game.id}
+                  className="border-2 border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-panel)_96%,white)] p-3 text-left shadow-[4px_4px_0_var(--color-shadow)] transition-colors hover:bg-[var(--color-accent-soft)]"
+                  onClick={() => {
+                    setCopyState("idle");
+                    setSelectedGameId(game.id);
+                    review.reset();
+                  }}
+                  type="button"
+                >
+                  <p className="text-lg font-semibold uppercase">{game.summary}</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">
+                    {new Date(game.createdAt).toLocaleString()}
+                  </p>
+                  <p className="mt-2 text-sm text-[var(--color-muted)]">
+                    {game.mode.toUpperCase()} · {game.moveCount} plies · {game.result}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
         </Panel>
 
         <div className="grid gap-4">
-          <Panel heading="Coach Analysis" kicker="Gemini Review">
+          <Panel className="order-2" heading="Coach Analysis" kicker="Gemini Review">
             {selectedGame ? (
               <div className="grid gap-4">
                 {!coach.isConfigured ? (
                   <p className="text-sm text-[var(--color-warning)]">
-                    Add `VITE_GEMINI_API_KEY` to activate post-game coaching.
+                    Coach analysis is not available in this environment yet.
                   </p>
                 ) : null}
-                <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3 text-sm text-[var(--color-muted)]">
+                <div className="app-pane-note text-sm">
                   {coach.hasUnlimitedCredits ? (
                     <p>Pro account: unlimited analysis credits.</p>
                   ) : (
@@ -177,31 +181,31 @@ export function ReviewPage() {
                 ) : null}
                 {coach.analysis ? (
                   <div className="grid gap-4">
-                    <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
+                    <div className="app-pane-note">
                       <p className="section-kicker">Summary</p>
                       <p className="mt-2 text-sm text-[var(--color-muted)]">
                         {coach.analysis.summary}
                       </p>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
+                      <div className="app-pane-note">
                         <p className="section-kicker">Strongest Idea</p>
                         <p className="mt-2 text-sm text-[var(--color-muted)]">
                           {coach.analysis.strongestIdea}
                         </p>
                       </div>
-                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
+                      <div className="app-pane-note">
                         <p className="section-kicker">Weakest Pattern</p>
                         <p className="mt-2 text-sm text-[var(--color-muted)]">
                           {coach.analysis.weakestPattern}
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-3">
+                    <div className="scroll-rail-lg grid gap-3 pr-1">
                       {coach.analysis.keyMoments.map((moment) => (
                         <div
                           key={`${moment.ply}-${moment.move}-${moment.title}`}
-                          className="border border-[var(--color-border)] bg-[var(--color-panel)] p-3"
+                          className="app-pane-note"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <p className="text-lg font-semibold uppercase">{moment.title}</p>
@@ -236,7 +240,7 @@ export function ReviewPage() {
             )}
           </Panel>
 
-          <Panel heading="Board Review" kicker="Move Playback">
+          <Panel className="order-1" heading="Board Review" kicker="Move Playback">
             {selectedGame && review.review ? (
               <div className="grid gap-4">
                 <ReviewBoard fen={review.review.currentFen} />
@@ -270,10 +274,28 @@ export function ReviewPage() {
             )}
           </Panel>
 
-          <Panel heading="Move Ledger" kicker="Selected Sequence">
+          <Panel className="order-3" heading="Move Ledger" kicker="Selected Sequence">
             {selectedGame && review.review ? (
               <div className="grid gap-3">
-                <div className="max-h-[360px] overflow-auto border border-[var(--color-border)]">
+                <div className="app-toolbar items-center justify-between text-sm text-[var(--color-muted)]">
+                  <p>
+                    Move list is the main review surface. PGN stays available as an export format for sharing or external analysis.
+                  </p>
+                  <Button
+                    compact
+                    onClick={() => {
+                      void navigator.clipboard.writeText(selectedGame.pgn).then(() => {
+                        setCopyState("copied");
+                        window.setTimeout(() => setCopyState("idle"), 1500);
+                      });
+                    }}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {copyState === "copied" ? "PGN copied" : "Copy PGN"}
+                  </Button>
+                </div>
+                <div className="scroll-rail-md border-2 border-[var(--color-border-strong)] bg-[color-mix(in_srgb,var(--color-surface)_96%,white)] shadow-[4px_4px_0_var(--color-shadow)]">
                   <ol className="grid">
                     {review.review.history.map((move, index) => (
                       <li key={`${move.from}-${move.to}-${index}`}>
@@ -291,9 +313,6 @@ export function ReviewPage() {
                     ))}
                   </ol>
                 </div>
-                <pre className="overflow-auto whitespace-pre-wrap border border-[var(--color-border)] bg-[var(--color-panel)] p-3 font-mono text-xs text-[var(--color-muted)]">
-                  {selectedGame.pgn}
-                </pre>
               </div>
             ) : null}
           </Panel>

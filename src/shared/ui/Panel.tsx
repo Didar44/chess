@@ -11,7 +11,7 @@ type Props = PropsWithChildren<
 export function Panel({ children, className, heading, kicker, ...props }: Props) {
   return (
     <section
-      className={cn("section-card p-4 sm:p-5", className)}
+      className={cn("app-panel section-card p-4 sm:p-5", className)}
       {...props}
     >
       {(heading || kicker) && (
