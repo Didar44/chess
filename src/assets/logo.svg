@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Boardline logo">
+  <path fill="#191512" d="M90 188V102H78V76H96V60H114V76H142V60H160V76H178V102H166V188H90Z"/>
+  <rect x="100" y="108" width="8" height="52" fill="#D85C41"/>
+  <rect x="112" y="108" width="20" height="20" fill="#F3EFE6"/>
+  <rect x="136" y="108" width="20" height="20" fill="#D85C41"/>
+  <rect x="112" y="132" width="20" height="20" fill="#B88B2F"/>
+  <rect x="136" y="132" width="20" height="20" fill="#ECE7DC"/>
+  <rect x="100" y="160" width="56" height="8" fill="#B88B2F"/>
+</svg>
