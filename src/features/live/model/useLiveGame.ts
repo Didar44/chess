@@ -116,7 +116,6 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
   const savedFinalHistoryRef = useRef(false);
   const previousMoveCountRef = useRef(gameState.history.length);
   const ratedResultHandledRef = useRef(false);
-  const ratedRefreshQueuedRef = useRef(false);
 
   useEffect(() => {
     identityRef.current = identity;
@@ -296,13 +295,6 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
         }
 
         setStatus("ready");
-
-        await channel.track({
-          isGuest: !sessionUser,
-          joinedAt: new Date().toISOString(),
-          name: identityRef.current.name,
-          presenceKey: identityRef.current.key,
-        } satisfies LivePresence);
 
         await channel.send({
           type: "broadcast",
@@ -491,18 +483,7 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
       blackSeat.presenceKey,
     );
 
-    if (!isRatedMatch) {
-      return;
-    }
-
-    if (assignedColor === "b" && !ratedRefreshQueuedRef.current) {
-      ratedRefreshQueuedRef.current = true;
-      window.setTimeout(() => {
-        void refreshProfile().catch(() => undefined);
-      }, 1400);
-    }
-
-    if (assignedColor !== "w" || ratedResultHandledRef.current) {
+    if (!isRatedMatch || !sessionUser || ratedResultHandledRef.current) {
       return;
     }
 
@@ -532,16 +513,22 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
           whiteScore: outcome.whiteScore,
         });
 
-        await Promise.all([
-          updateProfileRating({
-            rating: nextRatings.whiteRating,
-            userId: whiteProfile.id,
-          }),
-          updateProfileRating({
-            rating: nextRatings.blackRating,
-            userId: blackProfile.id,
-          }),
-        ]);
+        const isWhitePlayer = sessionUser.id === whiteProfile.id;
+        const isBlackPlayer = sessionUser.id === blackProfile.id;
+
+        if (!isWhitePlayer && !isBlackPlayer) {
+          setRatingStatus("skipped");
+          return;
+        }
+
+        const nextRating = isWhitePlayer
+          ? nextRatings.whiteRating
+          : nextRatings.blackRating;
+
+        await updateProfileRating({
+          rating: nextRating,
+          userId: sessionUser.id,
+        });
 
         await refreshProfile();
         setRatingStatus("applied");
@@ -556,12 +543,12 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
         );
       });
   }, [
-    assignedColor,
     gameState.isGameOver,
     gameState.result,
     gameState.turn,
     presence,
     refreshProfile,
+    sessionUser,
   ]);
 
   const isRatedMatch = useMemo(() => {

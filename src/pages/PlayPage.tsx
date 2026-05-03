@@ -835,7 +835,7 @@ export function PlayPage() {
             <div className="flex gap-3">
               {activeMode === "live" ? (
                 <Button
-                  className="border-white/80 bg-white text-[var(--color-text)]"
+                  variant="secondary"
                   onClick={handleLeaveLiveRoom}
                   type="button"
                 >
