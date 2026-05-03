@@ -98,6 +98,7 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
   const [status, setStatus] = useState<LiveStatus>("connecting");
   const [liveRecord, setLiveRecord] = useState<LiveMatchRecord | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const liveRecordRef = useRef<LiveMatchRecord | null>(null);
   const identity = useMemo(
     () =>
       sessionUser
@@ -167,6 +168,10 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
   }, [identity]);
 
   useEffect(() => {
+    liveRecordRef.current = liveRecord;
+  }, [liveRecord]);
+
+  useEffect(() => {
     latestGameRef.current = {
       fen: gameState.fen,
       history: gameState.history,
@@ -225,6 +230,94 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     };
   }, [gameId, isEnabled]);
 
+  const syncFromPersistedRecord = async () => {
+    if (!gameId) {
+      return null;
+    }
+
+    const record = await loadLiveGameRecord(gameId);
+
+    if (!record) {
+      return null;
+    }
+
+    liveRecordRef.current = record;
+    setLiveRecord(record);
+
+    if (record.moveCount > latestGameRef.current.history.length && record.pgn) {
+      loadPgnRef.current(record.pgn);
+      lastAppliedRemoteMoveCountRef.current = record.moveCount;
+      lastBroadcastMoveCountRef.current = record.moveCount;
+    }
+
+    return record;
+  };
+
+  const persistRoomState = async (seats: LiveSeat[]) => {
+    if (!gameId) {
+      return null;
+    }
+
+    const persisted = liveRecordRef.current;
+    const localMoveCount = latestGameRef.current.history.length;
+    const persistedMoveCount = persisted?.moveCount ?? 0;
+    const shouldUsePersisted = persistedMoveCount > localMoveCount;
+    const shouldSkipEmptyJoinWrite =
+      seats.length > 1 &&
+      localMoveCount === 0 &&
+      persistedMoveCount === 0 &&
+      !persisted;
+
+    if (shouldSkipEmptyJoinWrite) {
+      return null;
+    }
+
+    const baseFen = shouldUsePersisted
+      ? persisted!.fen
+      : latestGameRef.current.fen;
+    const basePgn = shouldUsePersisted
+      ? persisted!.pgn
+      : latestGameRef.current.pgn;
+    const baseMoveCount = shouldUsePersisted
+      ? persisted!.moveCount
+      : localMoveCount;
+    const baseResult = shouldUsePersisted
+      ? persisted!.result
+      : latestGameRef.current.result ?? "in-progress";
+    const baseLastMoveUci = shouldUsePersisted
+      ? persisted!.lastMoveUci
+      : null;
+    const createdBy = persisted?.createdBy ?? identityRef.current.key;
+
+    const record = await upsertLiveGameRecord({
+      blackName: seats.find((entry) => entry.color === "b")?.name ?? null,
+      blackPlayerKey:
+        seats.find((entry) => entry.color === "b")?.presenceKey ?? null,
+      createdBy,
+      fen: baseFen,
+      gameId,
+      lastMoveUci: baseLastMoveUci,
+      moveCount: baseMoveCount,
+      pgn: basePgn,
+      result: baseResult,
+      status: getRecordStatus({
+        hasMoves: baseMoveCount > 0,
+        isGameOver: baseResult !== "in-progress",
+        seats,
+      }),
+      whiteName: seats.find((entry) => entry.color === "w")?.name ?? null,
+      whitePlayerKey:
+        seats.find((entry) => entry.color === "w")?.presenceKey ?? null,
+    });
+
+    if (record) {
+      liveRecordRef.current = record;
+      setLiveRecord(record);
+    }
+
+    return record;
+  };
+
   useEffect(() => {
     if (!gameId || !isEnabled) {
       return;
@@ -254,30 +347,11 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
         );
         setAssignedColor(seat?.color ?? null);
 
-        void upsertLiveGameRecord({
-          blackName: nextPresence.find((entry) => entry.color === "b")?.name ?? null,
-          blackPlayerKey:
-            nextPresence.find((entry) => entry.color === "b")?.presenceKey ?? null,
-          createdBy: identityRef.current.key,
-          fen: latestGameRef.current.fen,
-          gameId,
-          lastMoveUci: null,
-          moveCount: latestGameRef.current.history.length,
-          pgn: latestGameRef.current.pgn,
-          result: latestGameRef.current.result ?? "in-progress",
-          status: getRecordStatus({
-            hasMoves: latestGameRef.current.history.length > 0,
-            isGameOver: latestGameRef.current.isGameOver,
-            seats: nextPresence,
-          }),
-          whiteName: nextPresence.find((entry) => entry.color === "w")?.name ?? null,
-          whitePlayerKey:
-            nextPresence.find((entry) => entry.color === "w")?.presenceKey ?? null,
-        }).then((record) => {
-          if (record) {
-            setLiveRecord(record);
-          }
-        }).catch((nextError) => {
+        if (nextPresence.length > 1) {
+          void syncFromPersistedRecord().catch(() => undefined);
+        }
+
+        void persistRoomState(nextPresence).catch((nextError) => {
           setError(
             nextError instanceof Error
               ? nextError.message
@@ -387,26 +461,7 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
 
         try {
           const seats = getPresenceEntries(channel);
-          await upsertLiveGameRecord({
-            blackName: seats.find((entry) => entry.color === "b")?.name ?? null,
-            blackPlayerKey:
-              seats.find((entry) => entry.color === "b")?.presenceKey ?? null,
-            createdBy: identityRef.current.key,
-            fen: latestGameRef.current.fen,
-            gameId,
-            lastMoveUci: null,
-            moveCount: latestGameRef.current.history.length,
-            pgn: latestGameRef.current.pgn,
-            result: latestGameRef.current.result ?? "in-progress",
-            status: getRecordStatus({
-              hasMoves: latestGameRef.current.history.length > 0,
-              isGameOver: latestGameRef.current.isGameOver,
-              seats,
-            }),
-            whiteName: seats.find((entry) => entry.color === "w")?.name ?? null,
-            whitePlayerKey:
-              seats.find((entry) => entry.color === "w")?.presenceKey ?? null,
-          });
+          await persistRoomState(seats);
         } catch (nextError) {
           setError(
             nextError instanceof Error

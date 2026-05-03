@@ -184,7 +184,7 @@ export function PlayPage() {
   };
 
   const handleModeSelect = (mode: GameMode) => {
-    if (mode === selectedMode && (mode !== "live" || !roomId)) {
+    if (mode === selectedMode) {
       return;
     }
 
