@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Color } from "chess.js";
 import type { useLocalChessGame } from "@/entities/game/model/useLocalChessGame";
@@ -88,6 +88,17 @@ function getRecordStatus(input: {
   return "waiting" as const;
 }
 
+function getLiveStatusForBoardState(input: {
+  hasMoves: boolean;
+  isGameOver: boolean;
+}) {
+  if (input.isGameOver) {
+    return "finished" as const;
+  }
+
+  return input.hasMoves ? "active" as const : "waiting" as const;
+}
+
 export function useLiveGame(gameId: string | null, gameState: GameState) {
   const { profile, refreshProfile, sessionUser, status: authStatus } = useAuth();
   const [guestIdentity] = useState(() => getOrCreateGuestIdentity());
@@ -131,7 +142,6 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
   const lastBroadcastMoveCountRef = useRef(0);
   const lastAppliedRemoteMoveCountRef = useRef(0);
   const savedFinalHistoryRef = useRef(false);
-  const previousMoveCountRef = useRef(gameState.history.length);
   const ratedResultHandledRef = useRef(false);
 
   useEffect(() => {
@@ -145,7 +155,6 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
       lastBroadcastMoveCountRef.current = 0;
       lastAppliedRemoteMoveCountRef.current = 0;
       savedFinalHistoryRef.current = false;
-      previousMoveCountRef.current = gameState.history.length;
       ratedResultHandledRef.current = false;
       return;
     }
@@ -159,9 +168,8 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     lastBroadcastMoveCountRef.current = 0;
     lastAppliedRemoteMoveCountRef.current = 0;
     savedFinalHistoryRef.current = false;
-    previousMoveCountRef.current = gameState.history.length;
     ratedResultHandledRef.current = false;
-  }, [gameId, gameState.history.length, isEnabled]);
+  }, [gameId, isEnabled]);
 
   useEffect(() => {
     identityRef.current = identity;
@@ -193,6 +201,38 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     gameState.turn,
   ]);
 
+  const syncFromPersistedRecord = useCallback(async () => {
+    if (!gameId) {
+      return null;
+    }
+
+    const record = await loadLiveGameRecord(gameId);
+
+    if (!record) {
+      return null;
+    }
+
+    liveRecordRef.current = record;
+    setLiveRecord(record);
+
+    if (
+      record.pgn &&
+      (
+        record.moveCount > latestGameRef.current.history.length
+        || (
+          record.moveCount === latestGameRef.current.history.length
+          && record.pgn !== latestGameRef.current.pgn
+        )
+      )
+    ) {
+      loadPgnRef.current(record.pgn);
+      lastAppliedRemoteMoveCountRef.current = record.moveCount;
+      lastBroadcastMoveCountRef.current = record.moveCount;
+    }
+
+    return record;
+  }, [gameId]);
+
   useEffect(() => {
     if (!gameId || !isEnabled) {
       return;
@@ -200,19 +240,7 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
 
     let isMounted = true;
 
-    loadLiveGameRecord(gameId)
-      .then((record) => {
-        if (!isMounted || !record) {
-          return;
-        }
-
-        setLiveRecord(record);
-        if (record.pgn) {
-          loadPgnRef.current(record.pgn);
-          lastAppliedRemoteMoveCountRef.current = record.moveCount;
-          lastBroadcastMoveCountRef.current = record.moveCount;
-        }
-      })
+    syncFromPersistedRecord()
       .catch((nextError: unknown) => {
         if (!isMounted) {
           return;
@@ -228,32 +256,9 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     return () => {
       isMounted = false;
     };
-  }, [gameId, isEnabled]);
+  }, [gameId, isEnabled, syncFromPersistedRecord]);
 
-  const syncFromPersistedRecord = async () => {
-    if (!gameId) {
-      return null;
-    }
-
-    const record = await loadLiveGameRecord(gameId);
-
-    if (!record) {
-      return null;
-    }
-
-    liveRecordRef.current = record;
-    setLiveRecord(record);
-
-    if (record.moveCount > latestGameRef.current.history.length && record.pgn) {
-      loadPgnRef.current(record.pgn);
-      lastAppliedRemoteMoveCountRef.current = record.moveCount;
-      lastBroadcastMoveCountRef.current = record.moveCount;
-    }
-
-    return record;
-  };
-
-  const persistRoomState = async (seats: LiveSeat[]) => {
+  const persistRoomState = useCallback(async (seats: LiveSeat[]) => {
     if (!gameId) {
       return null;
     }
@@ -316,7 +321,100 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     }
 
     return record;
-  };
+  }, [gameId]);
+
+  const syncLocalGameState = useCallback(async () => {
+    if (!gameId || !channelRef.current || status !== "ready" || assignedColor === null) {
+      return;
+    }
+
+    const currentMoveCount = latestGameRef.current.history.length;
+
+    if (currentMoveCount === 0) {
+      return;
+    }
+
+    if (lastAppliedRemoteMoveCountRef.current === currentMoveCount) {
+      return;
+    }
+
+    const lastMove = latestGameRef.current.history.at(-1);
+
+    if (!lastMove || lastMove.color !== assignedColor) {
+      return;
+    }
+
+    const persistedMoveCount = liveRecordRef.current?.moveCount ?? 0;
+    const alreadySyncedMoveCount = Math.max(
+      lastBroadcastMoveCountRef.current,
+      persistedMoveCount,
+    );
+
+    if (currentMoveCount <= alreadySyncedMoveCount) {
+      return;
+    }
+
+    const uci = `${lastMove.from}${lastMove.to}${lastMove.promotion ?? ""}`;
+    const nextStatus = getLiveStatusForBoardState({
+      hasMoves: currentMoveCount > 0,
+      isGameOver: latestGameRef.current.isGameOver,
+    });
+
+    const record = await upsertLiveGameRecord({
+      blackName: presence.find((entry) => entry.color === "b")?.name ?? null,
+      blackPlayerKey:
+        presence.find((entry) => entry.color === "b")?.presenceKey ?? null,
+      createdBy: liveRecordRef.current?.createdBy ?? identityRef.current.key,
+      fen: latestGameRef.current.fen,
+      gameId,
+      lastMoveUci: uci,
+      moveCount: currentMoveCount,
+      pgn: latestGameRef.current.pgn,
+      result: latestGameRef.current.result ?? "in-progress",
+      status: nextStatus,
+      whiteName: presence.find((entry) => entry.color === "w")?.name ?? null,
+      whitePlayerKey:
+        presence.find((entry) => entry.color === "w")?.presenceKey ?? null,
+    });
+
+    if (record) {
+      liveRecordRef.current = record;
+      setLiveRecord(record);
+    }
+
+    lastBroadcastMoveCountRef.current = currentMoveCount;
+
+    if (currentMoveCount === alreadySyncedMoveCount + 1) {
+      await channelRef.current.send({
+        type: "broadcast",
+        event: "move",
+        payload: {
+          fen: latestGameRef.current.fen,
+          moveCount: currentMoveCount,
+          pgn: latestGameRef.current.pgn,
+          result: latestGameRef.current.result ?? "in-progress",
+          senderKey: identityRef.current.key,
+          status: nextStatus,
+          uci,
+        } satisfies LiveMovePayload,
+      });
+
+      return;
+    }
+
+    await channelRef.current.send({
+      type: "broadcast",
+      event: "snapshot",
+      payload: {
+        fen: latestGameRef.current.fen,
+        moveCount: currentMoveCount,
+        pgn: latestGameRef.current.pgn,
+        result: latestGameRef.current.result ?? "in-progress",
+        senderKey: identityRef.current.key,
+        status: nextStatus,
+      } satisfies LiveSnapshotPayload,
+    });
+  }, [assignedColor, gameId, presence, status]);
 
   useEffect(() => {
     if (!gameId || !isEnabled) {
@@ -372,8 +470,8 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
 
         lastAppliedRemoteMoveCountRef.current = move.moveCount;
         applyUciMoveRef.current(move.uci);
-        setLiveRecord((current) =>
-          current
+        setLiveRecord((current) => {
+          const nextRecord = current
             ? {
               ...current,
               fen: move.fen,
@@ -384,8 +482,11 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
               status: move.status,
               updatedAt: new Date().toISOString(),
             }
-            : current,
-        );
+            : current;
+
+          liveRecordRef.current = nextRecord;
+          return nextRecord;
+        });
       })
       .on("broadcast", { event: "snapshot-request" }, async ({ payload }) => {
         const requesterKey = String((payload as { senderKey: string }).senderKey ?? "");
@@ -394,16 +495,29 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
           return;
         }
 
+        const persisted = liveRecordRef.current;
+        const localMoveCount = latestGameRef.current.history.length;
+        const persistedMoveCount = persisted?.moveCount ?? 0;
+        const shouldUsePersisted = persistedMoveCount > localMoveCount;
+        const snapshotStatus = shouldUsePersisted
+          ? persisted!.status
+          : getLiveStatusForBoardState({
+            hasMoves: localMoveCount > 0,
+            isGameOver: latestGameRef.current.isGameOver,
+          });
+
         await channel.send({
           type: "broadcast",
           event: "snapshot",
           payload: {
-            fen: latestGameRef.current.fen,
-            moveCount: latestGameRef.current.history.length,
-            pgn: latestGameRef.current.pgn,
-            result: latestGameRef.current.result ?? "in-progress",
+            fen: shouldUsePersisted ? persisted!.fen : latestGameRef.current.fen,
+            moveCount: shouldUsePersisted ? persisted!.moveCount : localMoveCount,
+            pgn: shouldUsePersisted ? persisted!.pgn : latestGameRef.current.pgn,
+            result: shouldUsePersisted
+              ? persisted!.result
+              : latestGameRef.current.result ?? "in-progress",
             senderKey: identityRef.current.key,
-            status: latestGameRef.current.isGameOver ? "finished" : "active",
+            status: snapshotStatus,
           } satisfies LiveSnapshotPayload,
         });
       })
@@ -414,14 +528,20 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
           return;
         }
 
-        if (snapshot.moveCount <= latestGameRef.current.history.length) {
+        if (
+          snapshot.moveCount < latestGameRef.current.history.length
+          || (
+            snapshot.moveCount === latestGameRef.current.history.length
+            && snapshot.pgn === latestGameRef.current.pgn
+          )
+        ) {
           return;
         }
 
         lastAppliedRemoteMoveCountRef.current = snapshot.moveCount;
         loadPgnRef.current(snapshot.pgn);
-        setLiveRecord((current) =>
-          current
+        setLiveRecord((current) => {
+          const nextRecord = current
             ? {
               ...current,
               fen: snapshot.fen,
@@ -431,8 +551,11 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
               status: snapshot.status,
               updatedAt: new Date().toISOString(),
             }
-            : current,
-        );
+            : current;
+
+          liveRecordRef.current = nextRecord;
+          return nextRecord;
+        });
       })
       .subscribe(async (nextStatus) => {
         if (nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") {
@@ -452,6 +575,8 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
           name: identityRef.current.name,
           presenceKey: identityRef.current.key,
         } satisfies LivePresence);
+
+        await syncFromPersistedRecord().catch(() => null);
 
         await channel.send({
           type: "broadcast",
@@ -476,75 +601,19 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
       void supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [authStatus, gameId, identity.key, identity.name, isEnabled, sessionUser]);
+  }, [
+    authStatus,
+    gameId,
+    identity.key,
+    identity.name,
+    isEnabled,
+    persistRoomState,
+    sessionUser,
+    syncFromPersistedRecord,
+  ]);
 
   useEffect(() => {
-    if (!gameId || !channelRef.current || assignedColor === null) {
-      previousMoveCountRef.current = gameState.history.length;
-      return;
-    }
-
-    const previousMoveCount = previousMoveCountRef.current;
-    const currentMoveCount = gameState.history.length;
-    previousMoveCountRef.current = currentMoveCount;
-
-    if (currentMoveCount <= previousMoveCount) {
-      return;
-    }
-
-    if (lastAppliedRemoteMoveCountRef.current === currentMoveCount) {
-      return;
-    }
-
-    const lastMove = gameState.history.at(-1);
-
-    if (!lastMove) {
-      return;
-    }
-
-    const senderColor = lastMove.color;
-
-    if (senderColor !== assignedColor) {
-      return;
-    }
-
-    const uci = `${lastMove.from}${lastMove.to}${lastMove.promotion ?? ""}`;
-    lastBroadcastMoveCountRef.current = currentMoveCount;
-
-    void channelRef.current.send({
-      type: "broadcast",
-      event: "move",
-      payload: {
-        fen: gameState.fen,
-        moveCount: currentMoveCount,
-        pgn: gameState.pgn,
-        result: gameState.result ?? "in-progress",
-        senderKey: identityRef.current.key,
-        status: gameState.isGameOver ? "finished" : "active",
-        uci,
-      } satisfies LiveMovePayload,
-    });
-
-    void upsertLiveGameRecord({
-      blackName: presence.find((entry) => entry.color === "b")?.name ?? null,
-      blackPlayerKey:
-        presence.find((entry) => entry.color === "b")?.presenceKey ?? null,
-      createdBy: identityRef.current.key,
-      fen: gameState.fen,
-      gameId,
-      lastMoveUci: uci,
-      moveCount: currentMoveCount,
-      pgn: gameState.pgn,
-      result: gameState.result ?? "in-progress",
-      status: gameState.isGameOver ? "finished" : "active",
-      whiteName: presence.find((entry) => entry.color === "w")?.name ?? null,
-      whitePlayerKey:
-        presence.find((entry) => entry.color === "w")?.presenceKey ?? null,
-    }).then((record) => {
-      if (record) {
-        setLiveRecord(record);
-      }
-    }).catch((nextError) => {
+    void syncLocalGameState().catch((nextError) => {
       setError(
         nextError instanceof Error
           ? nextError.message
@@ -552,14 +621,14 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
       );
     });
   }, [
-    assignedColor,
-    gameId,
     gameState.fen,
     gameState.history,
     gameState.isGameOver,
     gameState.pgn,
     gameState.result,
     presence,
+    status,
+    syncLocalGameState,
   ]);
 
   useEffect(() => {
