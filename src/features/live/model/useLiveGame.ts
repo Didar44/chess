@@ -86,10 +86,10 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     () =>
       sessionUser
         ? {
-            key: sessionUser.id,
-            name:
-              profile?.displayName ?? sessionUser.email?.split("@")[0] ?? "Player",
-          }
+          key: sessionUser.id,
+          name:
+            profile?.displayName ?? sessionUser.email?.split("@")[0] ?? "Player",
+        }
         : guestIdentity,
     [guestIdentity, profile?.displayName, sessionUser],
   );
@@ -226,15 +226,15 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
         setLiveRecord((current) =>
           current
             ? {
-                ...current,
-                fen: move.fen,
-                lastMoveUci: move.uci,
-                moveCount: move.moveCount,
-                pgn: move.pgn,
-                result: move.result,
-                status: move.status,
-                updatedAt: new Date().toISOString(),
-              }
+              ...current,
+              fen: move.fen,
+              lastMoveUci: move.uci,
+              moveCount: move.moveCount,
+              pgn: move.pgn,
+              result: move.result,
+              status: move.status,
+              updatedAt: new Date().toISOString(),
+            }
             : current,
         );
       })
@@ -274,14 +274,14 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
         setLiveRecord((current) =>
           current
             ? {
-                ...current,
-                fen: snapshot.fen,
-                moveCount: snapshot.moveCount,
-                pgn: snapshot.pgn,
-                result: snapshot.result,
-                status: snapshot.status,
-                updatedAt: new Date().toISOString(),
-              }
+              ...current,
+              fen: snapshot.fen,
+              moveCount: snapshot.moveCount,
+              pgn: snapshot.pgn,
+              result: snapshot.result,
+              status: snapshot.status,
+              updatedAt: new Date().toISOString(),
+            }
             : current,
         );
       })
@@ -443,6 +443,7 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
 
   useEffect(() => {
     if (
+      !gameId ||
       !gameState.isGameOver ||
       !sessionUser ||
       savedFinalHistoryRef.current ||
@@ -465,6 +466,7 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
       savedFinalHistoryRef.current = false;
     });
   }, [
+    gameId,
     gameState.fen,
     gameState.history.length,
     gameState.isGameOver,
@@ -482,11 +484,11 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
     const blackSeat = presence.find((entry) => entry.color === "b");
     const isRatedMatch = Boolean(
       whiteSeat &&
-        blackSeat &&
-        !whiteSeat.isGuest &&
-        !blackSeat.isGuest &&
-        whiteSeat.presenceKey &&
-        blackSeat.presenceKey,
+      blackSeat &&
+      !whiteSeat.isGuest &&
+      !blackSeat.isGuest &&
+      whiteSeat.presenceKey &&
+      blackSeat.presenceKey,
     );
 
     if (!isRatedMatch) {
@@ -568,11 +570,11 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
 
     return Boolean(
       whiteSeat &&
-        blackSeat &&
-        !whiteSeat.isGuest &&
-        !blackSeat.isGuest &&
-        whiteSeat.presenceKey &&
-        blackSeat.presenceKey,
+      blackSeat &&
+      !whiteSeat.isGuest &&
+      !blackSeat.isGuest &&
+      whiteSeat.presenceKey &&
+      blackSeat.presenceKey,
     );
   }, [presence]);
   const effectiveRatingStatus =

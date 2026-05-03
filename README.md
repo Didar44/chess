@@ -1,46 +1,50 @@
 # Boardline Chess
 
-Boardline is a frontend-first chess app built with React 19, Vite 8, `chess.js`, Supabase, Stockfish, and Gemini. It supports local play, browser AI, link-based live matches, saved reviews, ratings, leaderboard filters, and a mock Pro upgrade flow.
+Boardline Chess — это шахматная платформа для игры, обучения и анализа партий прямо в браузере.
 
-## Stack
+Продукт подходит для игроков, которые хотят быстро начать партию, сыграть против AI, провести онлайн-матч по ссылке и посмотреть разбор своих игр без лишней настройки. Это ценно, потому что всё собрано в одном интерфейсе: игра, история партий, рейтинги, coach-анализ и Pro-функции для более удобного и глубокого использования.
+
+Boardline Chess — это приложение на React 19, Vite 8, `chess.js`, Supabase, Stockfish и Gemini. Оно поддерживает локальную игру, AI в браузере, живые матчи по ссылке, сохранённые разборы, рейтинги, фильтры таблицы лидеров и mock-апгрейд Pro.
+
+## Стек
 
 - React 19 + TypeScript
 - Vite 8
 - Tailwind CSS 4
 - React Router 7
-- `chess.js` for rules and move validation
-- Stockfish in a worker for browser AI
-- Supabase for auth, profile data, saved games, live sync, leaderboard data, and Pro state
-- Gemini via `@google/genai` for saved-game coaching
+- `chess.js` для правил и проверки ходов
+- Stockfish в worker для AI в браузере
+- Supabase для авторизации, профилей, сохранённых партий, live-синхронизации, таблицы лидеров и состояния Pro
+- Gemini через `@google/genai` для coach-разбора сохранённых партий
 
-## Requirements
+## Требования
 
 - Node `20.19+`
 - npm `10+`
-- Supabase project for auth, persistence, and realtime
-- Optional Gemini API key for coach analysis
+- проект Supabase для авторизации, хранения данных и realtime
+- ключ Gemini API для coach-разбора
 
-## Setup
+## Установка
 
-1. Install dependencies:
+1. Установите зависимости:
 
 ```bash
 npm install
 ```
 
-2. Copy the env template and fill in your keys:
+2. Скопируйте шаблон окружения и заполните ключи:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Start the dev server:
+3. Запустите dev-сервер:
 
 ```bash
 npm run dev
 ```
 
-4. Run verification before shipping:
+4. Перед публикацией запустите проверки:
 
 ```bash
 npm run typecheck
@@ -48,22 +52,22 @@ npm run lint
 npm run build
 ```
 
-## Environment Variables
+## Переменные окружения
 
 - `VITE_SUPABASE_URL`: Supabase project URL.
-- `VITE_SUPABASE_PUBLISHABLE_KEY`: Supabase browser publishable key.
-- `VITE_GEMINI_API_KEY`: optional Gemini key for coach analysis. If missing, the coach UI stays visible but analysis is disabled with explicit messaging.
+- `VITE_SUPABASE_PUBLISHABLE_KEY`: публичный ключ Supabase для браузера.
+- `VITE_GEMINI_API_KEY`: ключ Gemini для coach-анализов.
 
-## Supabase Notes
+## Примечания по Supabase
 
-The app expects browser-accessible tables for:
+Приложение ожидает таблицы, доступные из браузера:
 
 - `profiles`
 - `games`
 - `live_games`
 - `coaching_results`
 
-The frontend currently assumes profile rows include:
+Сейчас фронтенд ожидает, что строки профиля содержат:
 
 - `id`
 - `email`
@@ -74,41 +78,13 @@ The frontend currently assumes profile rows include:
 - `created_at`
 - `updated_at`
 
-The app also expects Supabase Auth email/password sign-in and Realtime channels to be enabled.
+Также ожидается, что в Supabase включены Auth с email/password и Realtime-каналы.
 
-## Product Behavior
+## Поведение продукта
 
-- Rated results only apply to authenticated human-vs-human live games.
-- Free accounts are limited to the latest `8` reviewable saved games.
-- Free accounts get `3` coach analyses.
-- Pro unlocks deeper history, unlimited coach analysis, and a priority live-room lane.
-- The checkout is mock-only. It changes product behavior inside the prototype but does not process payments.
+- Рейтинговые результаты применяются только к авторизованным live-играм между людьми.
+- Бесплатный аккаунт видит только последние `8` сохранённых партий для разбора.
+- Бесплатному аккаунту доступно `3` coach-разбора.
+- Pro открывает более глубокую историю, неограниченный coach-анализ и приоритетную очередь для live-комнат.
+- Оплата здесь mock-режима: она меняет поведение продукта внутри прототипа, но не проводит реальных платежей.
 
-## Deployment
-
-The project is ready for static frontend deployment on Vercel or Netlify.
-
-- Build command: `npm run build`
-- Output directory: `dist`
-- Required env vars:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-  - optionally `VITE_GEMINI_API_KEY`
-
-## Launch Checklist
-
-- Confirm Supabase Auth email/password is enabled.
-- Confirm Realtime is active for live room channels.
-- Confirm the expected tables exist and browser policies allow the intended reads/writes.
-- Verify local play, AI play, live play, review, leaderboard, profile, and upgrade flows.
-- Test keyboard board control, touch move input, and mobile layouts.
-- Verify missing-config states for Supabase and Gemini.
-- Verify `npm run typecheck`, `npm run lint`, and `npm run build` pass on the deployment Node version.
-- Review Gemini usage risk: the prototype exposes the API key to the shipped client bundle.
-
-## Known Prototype Constraints
-
-- Ratings are deterministic but frontend-applied, so they are not abuse-resistant.
-- The Pro checkout is simulated only.
-- Gemini analysis depends on a public client-side key.
-- The production build currently emits a non-blocking Vite chunk-size warning for the main JS bundle.
