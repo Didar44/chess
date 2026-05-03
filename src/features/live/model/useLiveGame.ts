@@ -72,6 +72,22 @@ function getPresenceEntries(channel: RealtimeChannel): LiveSeat[] {
     .slice(0, 2);
 }
 
+function getRecordStatus(input: {
+  hasMoves: boolean;
+  isGameOver: boolean;
+  seats: LiveSeat[];
+}) {
+  if (input.isGameOver) {
+    return "finished" as const;
+  }
+
+  if (input.seats.length > 1 || input.hasMoves) {
+    return "active" as const;
+  }
+
+  return "waiting" as const;
+}
+
 export function useLiveGame(gameId: string | null, gameState: GameState) {
   const { profile, refreshProfile, sessionUser, status: authStatus } = useAuth();
   const [guestIdentity] = useState(() => getOrCreateGuestIdentity());
@@ -116,6 +132,35 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
   const savedFinalHistoryRef = useRef(false);
   const previousMoveCountRef = useRef(gameState.history.length);
   const ratedResultHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (!gameId || !isEnabled) {
+      setAssignedColor(null);
+      setError(null);
+      setPresence([]);
+      setRatingStatus("idle");
+      setStatus("connecting");
+      setLiveRecord(null);
+      lastBroadcastMoveCountRef.current = 0;
+      lastAppliedRemoteMoveCountRef.current = 0;
+      savedFinalHistoryRef.current = false;
+      previousMoveCountRef.current = gameState.history.length;
+      ratedResultHandledRef.current = false;
+      return;
+    }
+
+    setAssignedColor(null);
+    setError(null);
+    setPresence([]);
+    setRatingStatus("idle");
+    setStatus("connecting");
+    setLiveRecord(null);
+    lastBroadcastMoveCountRef.current = 0;
+    lastAppliedRemoteMoveCountRef.current = 0;
+    savedFinalHistoryRef.current = false;
+    previousMoveCountRef.current = gameState.history.length;
+    ratedResultHandledRef.current = false;
+  }, [gameId, gameState.history.length, isEnabled]);
 
   useEffect(() => {
     identityRef.current = identity;
@@ -208,6 +253,37 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
           (entry) => entry.presenceKey === identityRef.current.key,
         );
         setAssignedColor(seat?.color ?? null);
+
+        void upsertLiveGameRecord({
+          blackName: nextPresence.find((entry) => entry.color === "b")?.name ?? null,
+          blackPlayerKey:
+            nextPresence.find((entry) => entry.color === "b")?.presenceKey ?? null,
+          createdBy: identityRef.current.key,
+          fen: latestGameRef.current.fen,
+          gameId,
+          lastMoveUci: null,
+          moveCount: latestGameRef.current.history.length,
+          pgn: latestGameRef.current.pgn,
+          result: latestGameRef.current.result ?? "in-progress",
+          status: getRecordStatus({
+            hasMoves: latestGameRef.current.history.length > 0,
+            isGameOver: latestGameRef.current.isGameOver,
+            seats: nextPresence,
+          }),
+          whiteName: nextPresence.find((entry) => entry.color === "w")?.name ?? null,
+          whitePlayerKey:
+            nextPresence.find((entry) => entry.color === "w")?.presenceKey ?? null,
+        }).then((record) => {
+          if (record) {
+            setLiveRecord(record);
+          }
+        }).catch((nextError) => {
+          setError(
+            nextError instanceof Error
+              ? nextError.message
+              : "Live room presence sync failed.",
+          );
+        });
       })
       .on("broadcast", { event: "move" }, ({ payload }) => {
         const move = payload as LiveMovePayload;
@@ -296,6 +372,13 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
 
         setStatus("ready");
 
+        await channel.track({
+          isGuest: !sessionUser,
+          joinedAt: new Date().toISOString(),
+          name: identityRef.current.name,
+          presenceKey: identityRef.current.key,
+        } satisfies LivePresence);
+
         await channel.send({
           type: "broadcast",
           event: "snapshot-request",
@@ -315,7 +398,11 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
             moveCount: latestGameRef.current.history.length,
             pgn: latestGameRef.current.pgn,
             result: latestGameRef.current.result ?? "in-progress",
-            status: seats.length > 1 ? "active" : "waiting",
+            status: getRecordStatus({
+              hasMoves: latestGameRef.current.history.length > 0,
+              isGameOver: latestGameRef.current.isGameOver,
+              seats,
+            }),
             whiteName: seats.find((entry) => entry.color === "w")?.name ?? null,
             whitePlayerKey:
               seats.find((entry) => entry.color === "w")?.presenceKey ?? null,
@@ -335,19 +422,6 @@ export function useLiveGame(gameId: string | null, gameState: GameState) {
       channelRef.current = null;
     };
   }, [authStatus, gameId, identity.key, identity.name, isEnabled, sessionUser]);
-
-  useEffect(() => {
-    if (!channelRef.current || status !== "ready") {
-      return;
-    }
-
-    void channelRef.current.track({
-      isGuest: !sessionUser,
-      joinedAt: new Date().toISOString(),
-      name: identity.name,
-      presenceKey: identity.key,
-    } satisfies LivePresence);
-  }, [identity.key, identity.name, sessionUser, status]);
 
   useEffect(() => {
     if (!gameId || !channelRef.current || assignedColor === null) {
